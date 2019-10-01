@@ -7,6 +7,7 @@ import (
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 	"github.com/shurcooL/graphql/ident"
+	"os"
 	"reflect"
 	"strings"
 )
@@ -176,7 +177,7 @@ func setValue(v *Viper, tpl string, key string, rv reflect.Value, defaultValue i
 	return nil
 }
 
-func humanizeEnvBindPath(v *Viper, key string, path []string) error {
+func valueFromHumanizeEnvPath(v *Viper, key string, path []string) interface{} {
 	envPath := make([]string, len(path))
 	for i, key := range path {
 		name := ident.ParseMixedCaps(key)
@@ -186,8 +187,8 @@ func humanizeEnvBindPath(v *Viper, key string, path []string) error {
 	if p := v.EnvPrefix(); len(p) > 0 {
 		prefix = p + EnvSep
 	}
-	if err := v.BindEnv(key, strings.ToUpper(prefix+strings.Join(envPath, EnvSep))); err != nil {
-		return err
+	if val, ok := os.LookupEnv(strings.ToUpper(prefix+strings.Join(envPath, EnvSep))); ok {
+		return val
 	}
 	return nil
 }
@@ -216,6 +217,7 @@ func bindValues(v *Viper, disableBindMixedCapsEnv bool, iface interface{}, parts
 				return e
 			}
 		default:
+			var val interface{}
 			key := strings.Join(path, BindEnvSep)
 			//
 			if err := v.BindEnv(key); err != nil {
@@ -223,17 +225,17 @@ func bindValues(v *Viper, disableBindMixedCapsEnv bool, iface interface{}, parts
 			}
 			// bind mixed caps keys name to humanize ENV
 			if !disableBindMixedCapsEnv {
-				if err := humanizeEnvBindPath(v, key, path); err != nil {
-					return err
-				}
+				val = valueFromHumanizeEnvPath(v, key, path)
 			}
 			// bind to exact ENV name
 			if envConfigValue, testEnvConfig := t.Tag.Lookup(LookupEnvConfigTag); testEnvConfig {
-				if err := v.BindEnv(key, envConfigValue); err != nil {
-					return err
+				if v, ok := os.LookupEnv(envConfigValue); ok {
+					val = v
 				}
 			}
-			val := v.Get(key)
+			if val == nil {
+				val = v.Get(key)
+			}
 			//
 			if val != nil {
 				v.Set(key, val)
