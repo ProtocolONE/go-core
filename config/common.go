@@ -200,11 +200,11 @@ func bindValues(v *Viper, disableBindMixedCapsEnv bool, iface interface{}, parts
 	}
 	for i := 0; i < ift.NumField(); i++ {
 		fieldv := ifv.Field(i)
-		if !fieldv.CanSet() {
-			continue
-		}
 		t := ift.Field(i)
 		name := t.Name
+		if name[:1] == strings.ToLower(name[:1]) {
+			continue
+		}
 		tag, ok := t.Tag.Lookup(LookupTag)
 		if ok {
 			name = tag
