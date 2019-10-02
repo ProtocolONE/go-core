@@ -188,7 +188,9 @@ func valueFromHumanizeEnvPath(v *Viper, key string, path []string) interface{} {
 		prefix = p + EnvSep
 	}
 	envKey := strings.ToUpper(prefix+strings.Join(envPath, EnvSep))
-	envKey = v.EnvKeyReplacer().Replace(envKey)
+	if v.EnvKeyReplacer() != nil {
+		envKey = v.EnvKeyReplacer().Replace(envKey)
+	}
 	if val, ok := os.LookupEnv(envKey); ok {
 		return val
 	}
