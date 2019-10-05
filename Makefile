@@ -147,6 +147,15 @@ vendor: ## update vendor dependencies
     fi;
 .PHONY: vendor
 
+go-download-deps: ## download dependencies
+	if [ "${DIND}" = "1" ]; then \
+		$(call go_docker,"make go-download-deps") ;\
+    else \
+    	GO111MODULE=on \
+    	go get -d ./... ;\
+    fi;
+.PHONY: go-download-deps
+
 help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 .PHONY: help
