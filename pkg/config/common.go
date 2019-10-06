@@ -12,7 +12,17 @@ import (
 	"strings"
 )
 
-var usage = map[string]string{}
+// CfgItem
+type CfgItem struct {
+	Key      string
+	ENV      []string
+	Usage    string
+	Default  string
+	Type     string
+	Required bool
+	Fallback string
+	Value    interface{}
+}
 
 const (
 	Prefix                    = "go-core.config"
@@ -177,7 +187,7 @@ func setValue(v *Viper, tpl string, key string, rv reflect.Value, defaultValue i
 	return nil
 }
 
-func valueFromHumanizeEnvPath(v *Viper, key string, path []string) interface{} {
+func valueFromHumanizeEnvPath(v *Viper, path []string) (envKey string, val interface{}) {
 	envPath := make([]string, len(path))
 	for i, key := range path {
 		name := ident.ParseMixedCaps(key)
@@ -187,14 +197,14 @@ func valueFromHumanizeEnvPath(v *Viper, key string, path []string) interface{} {
 	if p := v.EnvPrefix(); len(p) > 0 {
 		prefix = p + EnvSep
 	}
-	envKey := strings.ToUpper(prefix + strings.Join(envPath, EnvSep))
+	envKey = strings.ToUpper(prefix + strings.Join(envPath, EnvSep))
 	if v.EnvKeyReplacer() != nil {
 		envKey = v.EnvKeyReplacer().Replace(envKey)
 	}
 	if val, ok := os.LookupEnv(envKey); ok {
-		return val
+		return envKey, val
 	}
-	return nil
+	return
 }
 
 func bindValues(v *Viper, disableBindMixedCapsEnv bool, iface interface{}, parts ...string) error {
@@ -216,68 +226,82 @@ func bindValues(v *Viper, disableBindMixedCapsEnv bool, iface interface{}, parts
 		}
 		path := append(parts, name)
 		switch fieldv.Kind() {
+		case reflect.Interface:
+			continue
+		case reflect.Ptr:
+			if e := bindValues(v, disableBindMixedCapsEnv, reflect.Zero(fieldv.Type().Elem()).Interface(), path...); e != nil {
+				return e
+			}
 		case reflect.Struct:
 			if e := bindValues(v, disableBindMixedCapsEnv, fieldv.Interface(), path...); e != nil {
 				return e
 			}
 		default:
-			var val interface{}
-			key := strings.Join(path, BindEnvSep)
+			var (
+				item   CfgItem
+				envKey string
+			)
+			item.Type = fieldv.Type().String()
+			item.Key = strings.Join(path, BindEnvSep)
 			//
-			if err := v.BindEnv(key); err != nil {
+			if err := v.BindEnv(item.Key); err != nil {
 				return err
 			}
 			// bind mixed caps keys name to humanize ENV
 			if !disableBindMixedCapsEnv {
-				val = valueFromHumanizeEnvPath(v, key, path)
+				envKey, item.Value = valueFromHumanizeEnvPath(v, path)
+				item.ENV = append(item.ENV, envKey)
 			}
 			// bind to exact ENV name
 			if envConfigValue, testEnvConfig := t.Tag.Lookup(LookupEnvConfigTag); testEnvConfig {
+				item.ENV = append(item.ENV, envConfigValue)
 				if v, ok := os.LookupEnv(envConfigValue); ok {
-					val = v
+					item.Value = v
 				}
 			}
-			if val == nil {
-				val = v.Get(key)
+			if item.Value == nil {
+				item.Value = v.Get(item.Key)
 			}
 			//
-			if val != nil {
-				v.Set(key, val)
+			if item.Value != nil {
+				v.Set(item.Key, item.Value)
 			}
-			vv := typ.Of(val)
+			vv := typ.Of(item.Value)
 			//
 			var (
-				defaultValue, requiredValue, fallbackValue string
-				testDefault, testRequired, testFallback    bool
+				requiredValue                           string
+				testDefault, testRequired, testFallback bool
 			)
-			defaultValue, testDefault = t.Tag.Lookup(LookupDefaultTag)
+			item.Default, testDefault = t.Tag.Lookup(LookupDefaultTag)
 			requiredValue, testRequired = t.Tag.Lookup(LookupRequiredTag)
-			fallbackValue, testFallback = t.Tag.Lookup(LookupFallbackTag)
-			required := testRequired && typ.StringBoolHumanize(requiredValue).V()
-			if testDefault && required {
-				e := fmt.Errorf("ambiguous usage in %v, only one of 'default' or 'required' should specified", key)
+			item.Fallback, testFallback = t.Tag.Lookup(LookupFallbackTag)
+			item.Required = testRequired && typ.StringBoolHumanize(requiredValue).V()
+			if testDefault && item.Required {
+				e := fmt.Errorf("ambiguous usage in %v, only one of 'default' or 'required' should specified", item.Key)
 				return errors.WithMessage(e, Prefix)
 			}
 			if vv.Empty().V() {
-				if required {
-					e := fmt.Errorf("option %v is required", key)
+				if item.Required {
+					e := fmt.Errorf("option %v is required", item.Key)
 					return errors.WithMessage(e, Prefix)
 				}
 				if testFallback {
-					if v.IsSet(fallbackValue) {
-						if e := setValue(v, ErrFallbackPlaceholder, key, fieldv, v.Get(fallbackValue)); e != nil {
+					if v.IsSet(item.Fallback) {
+						if e := setValue(v, ErrFallbackPlaceholder, item.Key, fieldv, v.Get(item.Fallback)); e != nil {
 							return e
 						}
 					}
 				} else if testDefault {
-					if e := setValue(v, ErrDefaultPlaceholder, key, fieldv, defaultValue); e != nil {
+					if e := setValue(v, ErrDefaultPlaceholder, item.Key, fieldv, item.Default); e != nil {
 						return e
 					}
 				}
 			}
 			if v, ok := t.Tag.Lookup("usage"); ok {
-				usage[key] = v
+				item.Usage = v
 			}
+			item.Value = v.Get(item.Key)
+			v.settings = append(v.settings, item)
 		}
 	}
 	return nil

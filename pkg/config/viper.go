@@ -9,6 +9,7 @@ type Viper struct {
 	*viper.Viper
 	envKeyReplacer *strings.Replacer
 	envPrefix      string
+	settings       []CfgItem
 }
 
 // SetEnvPrefix defines a prefix that ENVIRONMENT variables will use.
@@ -36,6 +37,11 @@ func (v *Viper) EnvPrefix() string {
 // EnvPrefix returns strings.Replacer
 func (v *Viper) EnvKeyReplacer() *strings.Replacer {
 	return v.envKeyReplacer
+}
+
+// AllEnrichedSettings returns all settings with enriched info
+func (v *Viper) AllEnrichedSettings() []CfgItem {
+	return v.settings
 }
 
 // NewViper
