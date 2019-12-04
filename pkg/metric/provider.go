@@ -7,7 +7,10 @@ import (
 	"github.com/ProtocolONE/go-core/v2/pkg/logger"
 	"github.com/cactus/go-statsd-client/statsd"
 	"github.com/google/wire"
+	promreporter "github.com/uber-go/tally/prometheus"
 	tallystatsd "github.com/uber-go/tally/statsd"
+	"net/http"
+	"net/url"
 )
 
 // ProviderCfg returns configuration for production jaeger client
@@ -38,6 +41,34 @@ func Provider(ctx context.Context, log logger.Logger, cfg *Config) (Scope, func(
 	return m, func() {}, nil
 }
 
+// ProviderPrometheus returns prometheus connector metric instance implemented of Scope interface with resolved dependencies
+func ProviderPrometheus(ctx context.Context, log logger.Logger, cfg *Config) (Scope, func(), error) {
+	if !cfg.Enabled {
+		return ProviderTest()
+	}
+	u, e := url.Parse(cfg.Prometheus.Address)
+	if e != nil {
+		return nil, nil, e
+	}
+	cfgCopy := cfg
+	r := promreporter.NewReporter(cfgCopy.Prometheus.Options)
+	cfgCopy.Scope.Tags = map[string]string{}
+	cfgCopy.Scope.CachedReporter = r
+	if cfgCopy.Scope.Separator == "" {
+		cfgCopy.Scope.Separator = promreporter.DefaultSeparator
+	}
+	//
+	http.Handle(u.Path, r.HTTPHandler())
+	go func() {
+		err := http.ListenAndServe(u.Host, nil)
+		if err != nil {
+			panic(err)
+		}
+	}()
+	m := NewTally(ctx, log, cfgCopy.Scope, cfgCopy.Interval)
+	return m, func() {}, nil
+}
+
 // ProviderTest returns stub/mock client metric instance implemented of Scope interface with resolved dependencies
 func ProviderTest() (Scope, func(), error) {
 	m := NewMock()
@@ -45,6 +76,6 @@ func ProviderTest() (Scope, func(), error) {
 }
 
 var (
-	WireSet     = wire.NewSet(Provider, ProviderCfg)
+	WireSet     = wire.NewSet(ProviderPrometheus, ProviderCfg)
 	WireTestSet = wire.NewSet(ProviderTest)
 )

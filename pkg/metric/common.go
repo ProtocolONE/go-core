@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/ProtocolONE/go-core/v2/pkg/invoker"
 	"github.com/uber-go/tally"
+	promreporter "github.com/uber-go/tally/prometheus"
 	tallystatsd "github.com/uber-go/tally/statsd"
 	"time"
 )
@@ -21,13 +22,20 @@ type StatsDCfg struct {
 	Options       tallystatsd.Options
 }
 
+// PrometheusCfg is a setting for tally prometheus connector
+type PrometheusCfg struct {
+	Address string `default:"http://0.0.0.0:9090/metrics"`
+	Options promreporter.Options
+}
+
 // Config is a general metric config settings
 type Config struct {
-	Enabled  bool
-	StatsD   StatsDCfg
-	Scope    tally.ScopeOptions
-	Interval time.Duration
-	invoker  *invoker.Invoker
+	Enabled    bool
+	StatsD     StatsDCfg
+	Prometheus PrometheusCfg
+	Scope      tally.ScopeOptions
+	Interval   time.Duration
+	invoker    *invoker.Invoker
 }
 
 // OnReload
