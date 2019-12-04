@@ -11,6 +11,12 @@ import (
 	tallystatsd "github.com/uber-go/tally/statsd"
 	"net/http"
 	"net/url"
+	"sync"
+)
+
+var (
+	m  Scope
+	mu sync.Mutex
 )
 
 // ProviderCfg returns configuration for production jaeger client
@@ -43,6 +49,11 @@ func Provider(ctx context.Context, log logger.Logger, cfg *Config) (Scope, func(
 
 // ProviderPrometheus returns prometheus connector metric instance implemented of Scope interface with resolved dependencies
 func ProviderPrometheus(ctx context.Context, log logger.Logger, cfg *Config) (Scope, func(), error) {
+	defer mu.Unlock()
+	mu.Lock()
+	if m != nil {
+		return m, func() {}, nil
+	}
 	if !cfg.Enabled {
 		return ProviderTest()
 	}
@@ -65,7 +76,7 @@ func ProviderPrometheus(ctx context.Context, log logger.Logger, cfg *Config) (Sc
 			panic(err)
 		}
 	}()
-	m := NewTally(ctx, log, cfgCopy.Scope, cfgCopy.Interval)
+	m = NewTally(ctx, log, cfgCopy.Scope, cfgCopy.Interval)
 	return m, func() {}, nil
 }
 

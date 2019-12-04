@@ -7,7 +7,12 @@ require (
 	github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd // indirect
 	github.com/google/wire v0.3.0
 	github.com/gurukami/typ/v2 v2.0.1
+	github.com/m3db/prometheus_client_golang v0.8.1 // indirect
+	github.com/m3db/prometheus_client_model v0.1.0 // indirect
+	github.com/m3db/prometheus_common v0.1.0 // indirect
+	github.com/m3db/prometheus_procfs v0.8.1 // indirect
 	github.com/magiconair/properties v1.8.1 // indirect
+	github.com/mitchellh/hashstructure v1.0.0
 	github.com/mitchellh/mapstructure v1.1.2
 	github.com/opentracing/opentracing-go v1.1.0
 	github.com/pelletier/go-toml v1.4.0 // indirect

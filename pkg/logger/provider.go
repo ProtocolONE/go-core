@@ -5,6 +5,12 @@ import (
 	"github.com/ProtocolONE/go-core/v2/pkg/config"
 	"github.com/ProtocolONE/go-core/v2/pkg/invoker"
 	"github.com/google/wire"
+	"sync"
+)
+
+var (
+	z  *Zap
+	mu sync.Mutex
 )
 
 // ProviderCfg returns configuration for production logger
@@ -18,7 +24,13 @@ func ProviderCfg(cfg config.Configurator) (*Config, func(), error) {
 
 // Provider returns logger instance implemented of Logger interface with resolved dependencies
 func Provider(ctx context.Context, cfg *Config) (*Zap, func(), error) {
-	return NewZap(ctx, cfg), func() {}, nil
+	defer mu.Unlock()
+	mu.Lock()
+	if z != nil {
+		return z, func() {}, nil
+	}
+	z = NewZap(ctx, cfg)
+	return z, func() {}, nil
 }
 
 // ProviderTest returns stub/mock logger instance implemented of Logger interface with resolved dependencies

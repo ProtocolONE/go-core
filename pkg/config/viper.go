@@ -44,6 +44,16 @@ func (v *Viper) AllEnrichedSettings() []CfgItem {
 	return v.settings
 }
 
+func (v *Viper) findCfgItemByName(name string) *CfgItem {
+	for _, val := range v.settings {
+		if val.Key == name {
+			cVal := val
+			return &cVal
+		}
+	}
+	return nil
+}
+
 // NewViper
 func NewViper() *Viper {
 	return &Viper{

@@ -243,6 +243,10 @@ func bindValues(v *Viper, disableBindMixedCapsEnv bool, iface interface{}, parts
 			)
 			item.Type = fieldv.Type().String()
 			item.Key = strings.Join(path, BindEnvSep)
+			// skip binding if already bind
+			if v.findCfgItemByName(item.Key) != nil {
+				return nil
+			}
 			//
 			if err := v.BindEnv(item.Key); err != nil {
 				return err
