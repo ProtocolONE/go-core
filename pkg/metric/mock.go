@@ -1,6 +1,9 @@
 package metric
 
-import "time"
+import (
+	"github.com/uber-go/tally"
+	"time"
+)
 
 // Counter is the emitter type metrics.
 type counter struct {
@@ -18,6 +21,13 @@ type gauge struct {
 func (*gauge) Update(value float64) {
 }
 
+type stopwatchRecorder struct {
+}
+
+// RecordStopwatch
+func (s *stopwatchRecorder) RecordStopwatch(stopwatchStart time.Time) {
+}
+
 // Timer is the emitter timer metrics.
 type timer struct {
 }
@@ -28,7 +38,7 @@ func (*timer) Record(value time.Duration) {
 
 // Start gives you back a specific point in time to report via Stop.
 func (*timer) Start() Stopwatch {
-	return Stopwatch{}
+	return tally.NewStopwatch(time.Now(), &stopwatchRecorder{})
 }
 
 // Histogram is the emitter histogram metrics
@@ -48,7 +58,7 @@ func (*histogram) RecordDuration(value time.Duration) {
 // Start gives you a specific point in time to then record a duration.
 // Will use the configured duration buckets for the histogram.
 func (*histogram) Start() Stopwatch {
-	return Stopwatch{}
+	return tally.NewStopwatch(time.Now(), &stopwatchRecorder{})
 }
 
 // Capabilities is a description of metrics reporting capabilities.
