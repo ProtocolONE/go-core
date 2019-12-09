@@ -295,7 +295,7 @@ func bindValues(v *Viper, disableBindMixedCapsEnv bool, iface interface{}, parts
 							return e
 						}
 					}
-				} else if testDefault {
+				} else if testDefault && !v.IsSet(item.Key) {
 					if e := setValue(v, ErrDefaultPlaceholder, item.Key, fieldv, item.Default); e != nil {
 						return e
 					}
