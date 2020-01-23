@@ -2,15 +2,15 @@ package entrypoint
 
 import (
 	"context"
-	"fmt"
+	"os"
+	"sync"
+
 	"github.com/ProtocolONE/go-core/v2/pkg/config"
 	"github.com/ProtocolONE/go-core/v2/pkg/invoker"
 	"github.com/ProtocolONE/go-core/v2/pkg/logger"
 	"github.com/ProtocolONE/go-core/v2/pkg/metric"
 	"github.com/ProtocolONE/go-core/v2/pkg/tracing"
 	"github.com/pkg/errors"
-	"os"
-	"sync"
 )
 
 var (
@@ -99,10 +99,10 @@ func (e *EntryPoint) Executor(builder func(ctx context.Context) error, runner fu
 func (e *EntryPoint) Serve(preRun func() error) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			if re, _ := r.(error); re != nil {
-				err = re
+			if re, ok := r.(error); ok {
+				err = errors.Wrap(re, "recovered error:")
 			} else {
-				err = fmt.Errorf("unhandled panic, err: %v", r)
+				err = errors.Errorf("unhandled panic, err: %v", r)
 			}
 		}
 	}()
