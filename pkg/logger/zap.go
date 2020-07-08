@@ -320,3 +320,12 @@ func NewZap(ctx context.Context, cfg *Config) *Zap {
 	})
 	return z
 }
+
+//WrapLogger just wraps zap logger without unnecessary actions and return logger
+func WrapLogger(ctx context.Context, logger *zap.Logger, cfg *Config) *Zap {
+	tagsMap := parseTagsMap(cfg)
+	copyCfg := *cfg
+	z := &Zap{ctx: ctx, cfg: &copyCfg, logger: logger.Sugar(), tagsMap: tagsMap}
+
+	return z
+}
